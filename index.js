@@ -15,12 +15,29 @@ const serverListeners = (socketServer) => {
 	socketServer.on("connection", (socket) => {
 		console.log(`A client connected: ${socket.id}`);
 
+		let metricsInterval;
+
 		setTimeout(() => {
 			socket.emit("initialize", {
 				servers: getServers(),
 				units: getMetrics(),
 			});
 		}, 10000);
+
+		socket.on("trigger:create:metrics", (message) => {
+			console.log({ message });
+			metricsInterval = setInterval(() => {
+				socketServer.emit("metrics:create", getCreateMetrics());
+			}, 15000);
+		});
+
+		socket.on("disconnect", () => {
+			console.log(`A client disconnected: ${socket.id}`);
+			if (metricsInterval) {
+				clearInterval(metricsInterval);
+				metricsInterval = null;
+			}
+		});
 	});
 };
 
@@ -36,6 +53,26 @@ const getServers = () => {
 		});
 	}
 	return servers;
+};
+
+const getCreateMetrics = () => {
+	const metrics = [];
+
+	const servers = getServers();
+	const metricsList = getMetrics();
+
+	for (const server of servers) {
+		const metricFind = metricsList[Math.floor(Math.random() * metricsList.length)];
+
+		metrics.push({
+			server: server.name,
+			metric: metricFind.name,
+			value: Math.round(Math.random() * 100 * 100) / 100,
+			unit: metricFind.unit,
+		});
+	}
+
+	return metrics;
 };
 
 const getMetrics = () => {
